@@ -1,8 +1,6 @@
-
 const express = require('express');
 const cors = require('cors');
 const app = express();
-
 
 const corsOptions = {
   origin: 'https://convertidor-frontend.vercel.app',
@@ -10,7 +8,6 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
-
 
 const conversionFactors = {
   time: {
@@ -35,7 +32,6 @@ const conversionFactors = {
     CHF: 0.9,
   },
 };
-
 
 const translations = {
   es: {
@@ -63,7 +59,6 @@ const translations = {
   },
 };
 
-
 app.get('/api/units/:category/:lang', (req, res) => {
   const { category, lang } = req.params;
   
@@ -79,24 +74,34 @@ app.get('/api/units/:category/:lang', (req, res) => {
   res.json(translatedUnits);
 });
 
-
 app.post('/api/convert', (req, res) => {
   const { category, value, fromUnit, toUnit } = req.body;
   
-  const fromValue = conversionFactors[category][fromUnit];
-  const toValue = conversionFactors[category][toUnit];
-
   let result;
 
   if (category === 'temperature') {
-    const baseValue = (fromUnit === 'celsius') ? value : conversionFactors.temperature[fromUnit].celsius(value);
-    result = conversionFactors.temperature[toUnit] === 1 ? baseValue : conversionFactors.temperature[toUnit](baseValue);
+    const baseToCelsius = (tempValue, tempUnit) => {
+        if (tempUnit === 'celsius') return tempValue;
+        if (tempUnit === 'fahrenheit') return (tempValue - 32) * 5/9;
+        if (tempUnit === 'kelvin') return tempValue - 273.15;
+    };
+    
+    const celsiusValue = baseToCelsius(value, fromUnit);
+    
+    if (toUnit === 'celsius') {
+        result = celsiusValue;
+    } else if (toUnit === 'fahrenheit') {
+        result = (celsiusValue * 9/5) + 32;
+    } else if (toUnit === 'kelvin') {
+        result = celsiusValue + 273.15;
+    }
   } else {
+    const fromValue = conversionFactors[category][fromUnit];
+    const toValue = conversionFactors[category][toUnit];
     result = (value / fromValue) * toValue;
   }
 
   res.json({ result });
 });
-
 
 module.exports = app;
