@@ -1,68 +1,102 @@
+
 const express = require('express');
 const cors = require('cors');
 const app = express();
-const port = 5000;
 
 
-app.use(cors());
+const corsOptions = {
+  origin: 'https://convertidor-frontend.vercel.app',
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 
 const conversionFactors = {
   time: {
-    hours: { days: 1 / 24, months: 1 / 730.5, years: 1 / 8766 },
-    days: { hours: 24, months: 1 / 30.44, years: 1 / 365.25 },
-    months: { hours: 730.5, days: 30.44, years: 1 / 12 },
-    years: { hours: 8766, days: 365.25, months: 12 },
+    hours: 1, 
+    days: 1 / 24,
+    months: 1 / 730.5,
+    years: 1 / 8766,
   },
   weight: {
-    grams: { kilograms: 0.001, pounds: 0.00220462 },
-    kilograms: { grams: 1000, pounds: 2.20462 },
-    pounds: { grams: 453.592, kilograms: 0.453592 },
+    grams: 1, 
+    kilograms: 0.001,
+    pounds: 0.00220462,
   },
   temperature: {
-    celsius: {
-      fahrenheit: (c) => (c * 9) / 5 + 32,
-      kelvin: (c) => c + 273.15,
-    },
-    fahrenheit: {
-      celsius: (f) => ((f - 32) * 5) / 9,
-      kelvin: (f) => ((f - 32) * 5) / 9 + 273.15,
-    },
-    kelvin: {
-      celsius: (k) => k - 273.15,
-      fahrenheit: (k) => ((k - 273.15) * 9) / 5 + 32,
-    },
+    celsius: 1, 
+    fahrenheit: (c) => (c * 9) / 5 + 32,
+    kelvin: (c) => c + 273.15,
   },
   money: {
-    USD: { COP: 4000, CHF: 0.9 }, 
-    COP: { USD: 1 / 4000, CHF: 0.9 / 4000 },
-    CHF: { USD: 1 / 0.9, COP: 4000 / 0.9 },
+    USD: 1, 
+    COP: 4000,
+    CHF: 0.9,
   },
 };
 
-// Ruta para realizar las conversiones
+
+const translations = {
+  es: {
+    time: {
+      hours: 'horas',
+      days: 'días',
+      months: 'meses',
+      years: 'años',
+    },
+    weight: {
+      grams: 'gramos',
+      kilograms: 'kilogramos',
+      pounds: 'libras',
+    },
+    temperature: {
+      celsius: 'celsius',
+      fahrenheit: 'fahrenheit',
+      kelvin: 'kelvin',
+    },
+    money: {
+      USD: 'dólar estadounidense',
+      COP: 'peso colombiano',
+      CHF: 'franco suizo',
+    },
+  },
+};
+
+
+app.get('/api/units/:category/:lang', (req, res) => {
+  const { category, lang } = req.params;
+  
+  if (!conversionFactors[category] || !translations[lang] || !translations[lang][category]) {
+    return res.status(404).json({ error: 'Category or language not found.' });
+  }
+  
+  const translatedUnits = Object.keys(conversionFactors[category]).map(key => ({
+    key: key,
+    name: translations[lang][category][key],
+  }));
+
+  res.json(translatedUnits);
+});
+
+
 app.post('/api/convert', (req, res) => {
   const { category, value, fromUnit, toUnit } = req.body;
+  
+  const fromValue = conversionFactors[category][fromUnit];
+  const toValue = conversionFactors[category][toUnit];
+
   let result;
 
-  const categoryData = conversionFactors[category];
-  if (!categoryData || !categoryData[fromUnit] || !categoryData[fromUnit][toUnit]) {
-    return res.status(400).json({ error: 'Conversión no válida.' });
-  }
-
-  const conversionFuncOrFactor = categoryData[fromUnit][toUnit];
-
-  // La temperatura requiere una función en lugar de un factor simple
   if (category === 'temperature') {
-    result = conversionFuncOrFactor(value);
+    const baseValue = (fromUnit === 'celsius') ? value : conversionFactors.temperature[fromUnit].celsius(value);
+    result = conversionFactors.temperature[toUnit] === 1 ? baseValue : conversionFactors.temperature[toUnit](baseValue);
   } else {
-    result = value * conversionFuncOrFactor;
+    result = (value / fromValue) * toValue;
   }
 
   res.json({ result });
 });
 
-app.listen(port, () => {
-  console.log(`Servidor escuchando en http://localhost:${port}`);
-});
+
+module.exports = app;
