@@ -23,8 +23,8 @@ const conversionFactors = {
   },
   temperature: {
     celsius: 1, 
-    fahrenheit: (c) => (c * 9) / 5 + 32,
-    kelvin: (c) => c + 273.15,
+    fahrenheit: 1,
+    kelvin: 1,
   },
   money: {
     USD: 1, 
